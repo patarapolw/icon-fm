@@ -1,0 +1,17 @@
+{
+  "python.formatting.provider": "black",
+  "deno.enable": true,
+  "deno.lint": true,
+  "deno.unstable": false,
+  "deno.suggest.imports.hosts": {
+    "https://cdn.skypack.dev": false
+  },
+  "editor.tabSize": 2,
+  "[python]": {
+    "editor.formatOnSave": true
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno",
+    "editor.formatOnSave": true
+  }
+}
