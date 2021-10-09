@@ -8,7 +8,7 @@ const gallery = new Viewer(elApp, {
   className: "viewerjs",
   title: (image, imageData) => {
     return `${image.alt} (${
-      image.src.startsWith("data:image/svg")
+      image.src.endsWith(".svg")
         ? "scalable"
         : `${image.alt} (${imageData.naturalWidth} × ${imageData.naturalHeight})`
     })`;
@@ -16,57 +16,81 @@ const gallery = new Viewer(elApp, {
   viewed({ detail: { image } }) {
     /** @type {HTMLImageElement} */
     const img = image;
-    const p = window.innerWidth * 0.8 / img.clientWidth;
+    const onload = () => {
+      gallery.update();
 
-    gallery.zoomTo(
-      img.src.startsWith("data:image/svg")
-        ? p
-        : img.clientWidth * 5 > window.innerWidth - 50
-        ? p
-        : 5,
-    );
+      if (!img.src.endsWith(".svg")) {
+        const p = window.innerWidth * 0.8 / img.naturalWidth;
+        gallery.zoomTo(p);
+      }
+    };
+
+    if (img.src === transparentIm) {
+      img.src = "/img?file=" + encodeURIComponent(img.alt);
+      img.onload = onload;
+    } else {
+      onload();
+    }
   },
 });
+window.gallery = gallery;
 
-const transparentIm = new URL("/1px.png", location.origin).href;
+const transparentIm = new URL("/px100.png", location.origin).href;
 
 async function doLookup() {
-  await eel.py_images()().then((r) => {
-    const images = /** @type {string[]} */ (r);
+  const r = await fetch("/api/init");
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
 
-    images.map((im) => {
-      const elIm = document.createElement("img");
+  let remainder = "";
+  const makeIm = (im) => {
+    const elIm = document.createElement("img");
 
-      elIm.loading = "lazy";
-      elIm.style.opacity = 0;
-      elIm.alt = im;
-      elIm.title = im;
+    elIm.src = transparentIm;
+    elIm.loading = "lazy";
+    elIm.style.opacity = 0;
+    elIm.alt = im;
+    elIm.title = im;
 
-      elApp.append(elIm);
+    elApp.append(elIm);
 
-      new IntersectionObserver(([entry]) => {
-        if (entry.isIntersecting && !elIm.src) {
-          elIm.src = transparentIm;
-          eel.py_image(im)().then((data) => {
-            elIm.src = data;
-            elIm.style.opacity = 1;
-            elIm.onload = () => {
-              gallery.update();
-            };
-          });
-        }
-      }, {
-        threshold: 0.8,
-      }).observe(elIm);
-    });
-  });
+    new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && elIm.src === transparentIm) {
+        elIm.src = "/img?file=" + encodeURIComponent(im);
+        elIm.style.opacity = 1;
+        elIm.onload = () => {
+          gallery.update();
+        };
+      }
+    }, {
+      threshold: 0.8,
+    }).observe(elIm);
+  };
+
+  while (true) {
+    const { value: im, done } = await reader.read();
+    if (done) break;
+
+    if (im) {
+      const lines = (remainder + dec.decode(im)).split("\n");
+      remainder = lines.pop() || "";
+
+      for (const im of lines) {
+        makeIm(im);
+      }
+    }
+  }
+
+  if (remainder) {
+    for (const im of remainder.trimEnd().split("\n")) {
+      alert(im);
+      makeIm(im);
+    }
+  }
 }
 
 doLookup().then(() => {
   setTimeout(() => {
     gallery.show();
-
-    const loop = () => doLookup().then(() => setTimeout(() => loop(), 1000));
-    loop();
   }, 1000);
 });

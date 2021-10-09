@@ -4,9 +4,20 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-eel = "*"
+pywebview = {extras = ["gtk"], version = "*"}
+flask = "*"
 
 [dev-packages]
+pillow = "*"
 
 [requires]
 python_version = "3.9"
+
+[scripts]
+px = '''python -c '
+import os
+from PIL import Image
+p = int(os.getenv("PX", "1"))
+Image.new("RGBA", (p, p), "#ffffff00").save(f"px{p}.png")
+'
+'''

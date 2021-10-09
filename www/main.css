@@ -18,6 +18,8 @@ body {
 }
 
 img {
+  max-width: 85%;
+  max-height: 85%;
   width: 100px;
   height: auto;
 }
