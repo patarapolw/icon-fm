@@ -28,7 +28,7 @@ const gallery = new Viewer(elApp, {
   },
 });
 
-const transparentIm = "image/svg+xml;utf8,<svg></svg>";
+const transparentIm = new URL("/1px.png", location.origin).href;
 
 async function doLookup() {
   await eel.py_images()().then((r) => {
@@ -37,22 +37,26 @@ async function doLookup() {
     images.map((im) => {
       const elIm = document.createElement("img");
 
-      elIm.alt = im;
       elIm.loading = "lazy";
       elIm.style.opacity = 0;
+      elIm.alt = im;
+      elIm.title = im;
 
       elApp.append(elIm);
 
       new IntersectionObserver(([entry]) => {
-        if (!entry.src && elIm.src === transparentIm) {
+        if (entry.isIntersecting && !elIm.src) {
+          elIm.src = transparentIm;
           eel.py_image(im)().then((data) => {
             elIm.src = data;
             elIm.style.opacity = 1;
-            gallery.update();
+            elIm.onload = () => {
+              gallery.update();
+            };
           });
         }
       }, {
-        threshold: 0.1,
+        threshold: 0.8,
       }).observe(elIm);
     });
   });
@@ -62,7 +66,7 @@ doLookup().then(() => {
   setTimeout(() => {
     gallery.show();
 
-    const loop = doLookup().then(() => loop());
+    const loop = () => doLookup().then(() => setTimeout(() => loop(), 1000));
     loop();
   }, 1000);
 });

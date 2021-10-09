@@ -10,6 +10,7 @@ import eel
 
 ROOT = Path(__file__).parent
 
+idx = 1
 images: list[str] = []
 
 eel.init(ROOT.joinpath("www"), allowed_extensions=[".html", ".js", ".css"])
@@ -24,6 +25,8 @@ def py_images():
 
 @eel.expose
 def py_image(file: str):
+    print(f"Sending: [{idx}] {file}")
+    globals()["idx"] = idx + 1
     return (
         "data:"
         + (mimetypes.guess_type(file)[0])
@@ -38,6 +41,8 @@ def stdin_read():
         t = mimetypes.guess_type(filename)[0]
         if os.access(filename, os.R_OK) and t and t.startswith("image/"):
             images.append(filename)
+
+    print("stdin all read")
 
 
 eel.spawn(stdin_read)
