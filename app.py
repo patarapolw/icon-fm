@@ -1,35 +1,44 @@
 #!/usr/bin/env python
 
+import os
 import sys
 from pathlib import Path
+import mimetypes
+import base64
 
-from flask import Flask, request, send_file
-import webview
+import eel
 
 ROOT = Path(__file__).parent
 
-
-app = Flask(__name__, static_folder=ROOT.joinpath("www"), static_url_path="/")
 images: list[str] = []
 
-for im in sys.stdin:
-    images.append(im.rstrip())
+eel.init(ROOT.joinpath("www"), allowed_extensions=[".html", ".js", ".css"])
 
 
-@app.route("/")
-def index():
-    return app.send_static_file("index.html")
+@eel.expose
+def py_images():
+    im = images
+    globals()["images"] = []
+    return im
 
 
-@app.get("/api/init")
-def api_init():
-    return {"images": images}
+@eel.expose
+def py_image(file: str):
+    return (
+        "data:"
+        + (mimetypes.guess_type(file)[0])
+        + ";base64,"
+        + base64.b64encode(Path(file).read_bytes()).decode("utf8")
+    )
 
 
-@app.get("/img")
-def img():
-    return send_file(request.args["file"])
+def stdin_read():
+    for im in sys.stdin:
+        filename = im.rstrip()
+        t = mimetypes.guess_type(filename)[0]
+        if os.access(filename, os.R_OK) and t and t.startswith("image/"):
+            images.append(filename)
 
 
-webview.create_window("Icon FM", app)
-webview.start()
+eel.spawn(stdin_read)
+eel.start("index.html")
